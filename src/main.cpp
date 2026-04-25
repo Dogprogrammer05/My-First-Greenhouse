@@ -9,6 +9,9 @@
 #define BME_CS 10
 
 #define SEALEVELPRESSURE_HPA (1013.25)
+const int LOWER_TEMP = 21;
+const int UPPER_TEMP = 29;
+
 
 Adafruit_BME680 bme; // I2C
 //Adafruit_BME680 bme(BME_CS); // hardware SPI
@@ -49,6 +52,8 @@ void loop() {
     case WATERING:
       Serial.println("watering");
       break;
+    case WARNING_TEMP:
+      Serial.println("Warning: temperature not in range. Please adjust accordingly.");
     default:
       Serial.println("default case");
   }
@@ -62,6 +67,9 @@ void checkBME() {
   Serial.print("Temperature = ");
   Serial.print(bme.temperature);
   Serial.println(" *C");
+  if (!tempInRange(bme.temperature)) {
+    greenhouse = WARNING_TEMP;
+  }
 
   Serial.print("Pressure = ");
   Serial.print(bme.pressure / 100.0);
@@ -82,6 +90,15 @@ void checkBME() {
   Serial.println();
   delay(2000);
 }
+
+bool tempInRange(int temp) {
+  if ((temp >= LOWER_TEMP) && (temp <= UPPER_TEMP)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 
 void setupBME() {
   // Set up oversampling and filter initialization
