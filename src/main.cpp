@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include "Adafruit_BME680.h"
+#include "Adafruit_seesaw.h"
 
 #define BME_SCK 13
 #define BME_MISO 12
@@ -27,6 +28,16 @@ Adafruit_BME680 bme; // I2C
 //Adafruit_BME680 bme(BME_CS); // hardware SPI
 //Adafruit_BME680 bme(BME_CS, BME_MOSI, BME_MISO,  BME_SCK);
 
+// sensor stuff
+Adafruit_seesaw soilSensor; // soil moisture sensor object
+
+const int WINDOW_SIZE = 4; // size of moving average window
+float moistureReadings[WINDOW_SIZE];
+
+int currentIndex = 0;
+float avgMoisture = 0;
+bool soilIsWet = false;
+
 enum State {
   IDLE,
   WATERING,
@@ -42,6 +53,7 @@ bool humidityInRange();
 void checkDashboard();
 void printDashboard();
 void checkHumidityAlert();
+void checkSoil();
 
 State greenhouse = IDLE;
 
@@ -56,6 +68,15 @@ void setup() {
   }
 
   setupBME(); 
+
+  // initialize sensor
+  if (!soilSensor.begin(0x36)) {
+    Serial.println("Could not find seesaw sensor. Check wiring.");
+    while (1);
+  }
+
+  Serial.print("Seesaw initialized. Version: ");
+  Serial.println(soilSensor.getVersion(), HEX);
 }
 
 void loop() {
@@ -64,6 +85,7 @@ void loop() {
   switch (greenhouse) {
     case IDLE: 
       checkBME();
+      checkSoil();
       checkDashboard();
       break;
     case WATERING:
@@ -147,6 +169,34 @@ void setupBME() {
   bme.setGasHeater(320, 150); // 320*C for 150 ms
 }
 
+void checkSoil() {
+  float temperature = soilSensor.getTemp();
+  uint16_t moisture = soilSensor.touchRead(0);
+
+  // store reading in array (circular buffer)
+  if (currentIndex >= WINDOW_SIZE) {
+    currentIndex = 0;
+  }
+
+  moistureReadings[currentIndex] = moisture;
+  currentIndex++;
+
+  // compute average
+  avgMoisture = 0;
+  for (int i = 0; i < WINDOW_SIZE; i++) {
+    avgMoisture += moistureReadings[i];
+  }
+  avgMoisture /= WINDOW_SIZE;
+
+  // determine if soil is wet
+  if (avgMoisture > 400) {
+    soilIsWet = true;
+  } else {
+    soilIsWet = false;
+  }
+}
+
+
 void printDashboard() {
   if (!bme.performReading()) {
     Serial.println("Failed to perform reading :(");
@@ -174,6 +224,10 @@ void printDashboard() {
   Serial.print("Humidity: ");
   Serial.print(humidity);
   Serial.println(" %");
+
+  Serial.print("Soil rating: ");
+  Serial.print(soilIsWet ? "Moist " : "Dry");
+  Serial.println(String("\nAverage soil: ") + avgMoisture);  
 
   Serial.print("Gas: ");
   Serial.print(gas);
