@@ -9,6 +9,9 @@
 #define BME_MOSI 11
 #define BME_CS 10
 
+const int RELAY_PIN = 2;
+const int BUTTON_PIN = 3;
+
 #define SEALEVELPRESSURE_HPA (1013.25)
 const int LOWER_TEMP = 21;
 const int UPPER_TEMP = 29;
@@ -37,12 +40,13 @@ float moistureReadings[WINDOW_SIZE];
 int currentIndex = 0;
 float avgMoisture = 0;
 bool soilIsWet = false;
+bool buttonPushed = false;
 
 enum State {
   IDLE,
   WATERING,
   WARNING_TEMP,
-  WARNING_HUM
+  WARNING_HUM,
 };
 
 // function headers
@@ -54,11 +58,22 @@ void checkDashboard();
 void printDashboard();
 void checkHumidityAlert();
 void checkSoil();
+void checkButton();
+void waterPlant();
 
 State greenhouse = IDLE;
 
 void setup() {
+  //digitalWrite(RELAY_PIN, LOW);
   Serial.begin(9600);
+
+  //setup relay
+  //pinMode(RELAY_PIN, OUTPUT);
+ // digitalWrite(RELAY_PIN, LOW);
+
+  //setup button
+  //pinMode(BUTTON_PIN, INPUT_PULLUP);
+
   while (!Serial);
   //Serial.println(F("BME680 test"));
 
@@ -82,15 +97,20 @@ void setup() {
 void loop() {
   //checkBME();
   //Serial.println("hello world");
+  //digitalWrite(RELAY_PIN, HIGH);
   switch (greenhouse) {
     case IDLE: 
       checkBME();
       checkSoil();
       checkDashboard();
+      checkButton();
       break;
-    case WATERING:
+    /*case WATERING:
       Serial.println("watering");
-      break;
+      waterPlant();
+      delay(100);
+      greenhouse = IDLE;
+      break;*/
     case WARNING_TEMP:
       Serial.println("Warning: temperature not in range. Please adjust accordingly.");
       Serial.println(String("Temperature: ") + temp + "%");
@@ -123,8 +143,16 @@ void checkBME() {
   if (!humidityInRange()) {
     greenhouse = WARNING_HUM;
   }
+}
 
-  delay(3000);
+void checkButton() {
+  buttonPushed = digitalRead(BUTTON_PIN);
+  //Serial.println("button checked");
+
+  if (buttonPushed == LOW) {
+    Serial.println("button pushed");
+    greenhouse = WATERING;
+  }
 }
 
 bool tempInRange() {
@@ -158,6 +186,19 @@ void checkHumidityAlert() {
     Serial.println(String("Humidity: ") + humidity + "%");
     lastHumAlert = millis();
   }
+}
+
+void waterPlant() {
+    /*for (int i = 0; i < 10; i++) {
+    digitalWrite(RELAY_PIN, LOW);  // ON
+    delay(200);                    // Short burst
+    digitalWrite(RELAY_PIN, HIGH); // OFF
+    delay(800);   */
+    //}
+    // Longer pause
+    digitalWrite(RELAY_PIN, HIGH);  // ON
+    delay(200);                    // Short burst
+    digitalWrite(RELAY_PIN, LOW);
 }
 
 void setupBME() {
