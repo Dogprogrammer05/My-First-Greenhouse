@@ -11,7 +11,11 @@
 #define SEALEVELPRESSURE_HPA (1013.25)
 const int LOWER_TEMP = 21;
 const int UPPER_TEMP = 29;
+const int LOWER_HUM = 60;
+const int UPPER_HUM = 80;
 
+int temp = -1;
+int humidity = -1;
 unsigned long lastDashboard = 0;
 const unsigned long DASH_INTERVAL = 60000; // 60,000 ms = 1 minute
 
@@ -23,12 +27,15 @@ Adafruit_BME680 bme; // I2C
 enum State {
   IDLE,
   WATERING,
-  WARNING_TEMP
+  WARNING_TEMP,
+  WARNING_HUM
 };
 
 // function headers
 void setupBME();
 void checkBME();
+bool tempInRange();
+bool humidityInRange();
 
 State greenhouse = IDLE;
 
@@ -57,6 +64,16 @@ void loop() {
       break;
     case WARNING_TEMP:
       Serial.println("Warning: temperature not in range. Please adjust accordingly.");
+      Serial.println(String("Temperature: ") + temp + "%");
+      delay(1000);
+      greenhouse = IDLE;
+      break;
+    case WARNING_HUM:
+      Serial.println("Warning: humidity not in range. Please adjust accordingly.");
+      Serial.println(String("Humidity: ") + humidity + "%");
+      delay(1000);
+      greenhouse = IDLE;
+      break;
     default:
       Serial.println("default case");
   }
@@ -67,35 +84,35 @@ void checkBME() {
     Serial.println("Failed to perform reading :(");
     return;
   }
-  Serial.print("Temperature = ");
-  Serial.print(bme.temperature);
-  Serial.println(" *C");
-  if (!tempInRange(bme.temperature)) {
+ // Serial.print("Temperature = ");
+  //Serial.print(bme.temperature);
+ // Serial.println(" *C");
+  temp = bme.temperature;
+  if (!tempInRange()) {
     greenhouse = WARNING_TEMP;
   }
 
-  Serial.print("Pressure = ");
-  Serial.print(bme.pressure / 100.0);
-  Serial.println(" hPa");
+  humidity = bme.humidity;
+  if (!humidityInRange()) {
+    greenhouse = WARNING_HUM;
+  }
 
-  Serial.print("Humidity = ");
-  Serial.print(bme.humidity);
-  Serial.println(" %");
-
-  Serial.print("Gas = ");
-  Serial.print(bme.gas_resistance / 1000.0);
-  Serial.println(" KOhms");
-
-  Serial.print("Approx. Altitude = ");
-  Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-  Serial.println(" m");
-
-  Serial.println();
-  delay(2000);
+  Serial.println(humidity);
+  delay(3000);
 }
 
-bool tempInRange(int temp) {
+bool tempInRange() {
   if ((temp >= LOWER_TEMP) && (temp <= UPPER_TEMP)) {
+    Serial.println("temp in range");
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool humidityInRange() {
+  if ((temp >= LOWER_HUM) && (temp <= UPPER_HUM)) {
+    Serial.println("humidity in range");
     return true;
   } else {
     return false;
@@ -104,6 +121,8 @@ bool tempInRange(int temp) {
     printDashboard();
     lastDashboard = millis();
 }
+
+
 
 
 void setupBME() {
