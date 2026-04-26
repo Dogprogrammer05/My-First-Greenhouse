@@ -16,8 +16,11 @@ const int UPPER_HUM = 80;
 
 int temp = -1;
 int humidity = -1;
-unsigned long lastDashboard = 60000;
+
 const unsigned long DASH_INTERVAL = 60000; // 60,000 ms = 1 minute
+const unsigned long HUM_INTERVAL = 80000;
+unsigned long lastDashboard = DASH_INTERVAL;
+unsigned long lastHumAlert = HUM_INTERVAL;
 
 
 Adafruit_BME680 bme; // I2C
@@ -38,6 +41,7 @@ bool tempInRange();
 bool humidityInRange();
 void checkDashboard();
 void printDashboard();
+void checkHumidityAlert();
 
 State greenhouse = IDLE;
 
@@ -72,9 +76,7 @@ void loop() {
       greenhouse = IDLE;
       break;
     case WARNING_HUM:
-      Serial.println("Warning: humidity not in range. Please adjust accordingly.");
-      Serial.println(String("Humidity: ") + humidity + "%");
-      delay(1000);
+      checkHumidityAlert();
       greenhouse = IDLE;
       break;
     default:
@@ -83,7 +85,7 @@ void loop() {
 }
 
 void checkBME() {
-  if (! bme.performReading()) {
+  if (!bme.performReading()) {
     Serial.println("Failed to perform reading :(");
     return;
   }
@@ -125,6 +127,14 @@ void checkDashboard() {
   if (millis() - lastDashboard >= DASH_INTERVAL) {
     printDashboard();
     lastDashboard = millis();
+  }
+}
+
+void checkHumidityAlert() {
+  if (millis() - lastHumAlert >= HUM_INTERVAL) {
+    Serial.println("Warning: humidity not in range. Please adjust accordingly.");
+    Serial.println(String("Humidity: ") + humidity + "%");
+    lastHumAlert = millis();
   }
 }
 
@@ -182,6 +192,7 @@ void printDashboard() {
     case IDLE: Serial.println("IDLE"); break;
     case WATERING: Serial.println("WATERING"); break;
     case WARNING_TEMP: Serial.println("WARNING_TEMP"); break;
+    case WARNING_HUM: Serial.println("WARNING_HUM"); break;
   }
 
   Serial.println("-----------------------------\n");
